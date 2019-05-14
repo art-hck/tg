@@ -1,0 +1,39 @@
+server {
+    root /opt/tg/web;
+    listen ${NGINX_PORT};
+    server_name ${NGINX_HOST};
+
+    gzip on;
+    gzip_comp_level 2; 
+    gzip_types text/css application/x-javascript text/plain text/xml image/x-icon application/x-font-ttf application/x-font-otf application/font-woff application/font-woff2 application/vnd.ms-fontobject;
+    client_max_body_size 32m;
+    resolver 127.0.0.11 valid=30s;
+
+    # Frontend (Angular2)
+    location / {
+        expires max;
+        try_files $uri @universal_server;
+    }
+
+    location @universal_server {
+        set $upstream http://node:8000;
+        proxy_pass $upstream;
+        proxy_intercept_errors on;
+        error_page 500 502 503 504 520 =200 /dist/index.html;
+        internal;
+    }
+
+    # REST BACKEND (Symfony3)
+    location /api {
+        try_files $uri /api/app.php$is_args$args;
+    }
+
+    location /api/app.php {
+        fastcgi_pass php:9000;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        internal;
+    }
+}
